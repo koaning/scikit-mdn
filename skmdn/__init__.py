@@ -143,7 +143,7 @@ class MixtureDensityEstimator(BaseEstimator):
         Returns:
             y: (n_samples,)
         """
-        X = torch.tensor(X, dtype=torch.float32).clone().detach()
+        X = torch.FloatTensor(X)
         with torch.no_grad():
             pi, mu, sigma = self.model_(X)
         pi, mu, sigma = pi.detach().numpy(), mu.detach().numpy(), sigma.detach().numpy()
@@ -164,7 +164,7 @@ class MixtureDensityEstimator(BaseEstimator):
             pdf: (n_samples, resolution)
             ys: (resolution,)
         '''
-        X = torch.tensor(X, dtype=torch.float32)
+        X = torch.FloatTensor(X)
         with torch.no_grad():
             pi, mu, sigma = self.model_(X)
         pi, mu, sigma = self.forward(X)
