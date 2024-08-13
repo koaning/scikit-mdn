@@ -65,12 +65,14 @@ class MixtureDensityEstimator(BaseEstimator):
         n_gaussians: number of gaussians in the mixture model
         epochs: number of epochs
         lr: learning rate
+        weight_decay: weight decay for regularisation
     '''
-    def __init__(self, hidden_dim=10, n_gaussians=5, epochs=1000, lr=0.01):
+    def __init__(self, hidden_dim=10, n_gaussians=5, epochs=1000, lr=0.01, weight_decay=0.0):
         self.hidden_dim = hidden_dim
         self.n_gaussians = n_gaussians
         self.epochs = epochs
         self.lr = lr
+        self.weight_decay = weight_decay
     
     def _cast_torch(self, X, y):
         if not hasattr(self, 'X_width_'):
@@ -99,7 +101,7 @@ class MixtureDensityEstimator(BaseEstimator):
         X, y = self._cast_torch(X, y)
 
         self.model_ = MixtureDensityNetwork(X.shape[1], self.hidden_dim, y.shape[1], self.n_gaussians)
-        self.optimizer_ = torch.optim.Adam(self.model_.parameters(), lr=self.lr)
+        self.optimizer_ = torch.optim.Adam(self.model_.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
         for epoch in range(self.epochs):
             self.optimizer_.zero_grad()
@@ -122,8 +124,7 @@ class MixtureDensityEstimator(BaseEstimator):
         X, y = self._cast_torch(X, y)
 
         if not self.optimizer_:
-            self.optimizer_ = torch.optim.Adam(self.model_.parameters(), lr=self.lr)
-
+            self.optimizer_ = torch.optim.Adam(self.model_.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         for epoch in range(n_epochs):
             self.optimizer_.zero_grad()
             pi, mu, sigma = self.model_(X)
@@ -149,11 +150,11 @@ class MixtureDensityEstimator(BaseEstimator):
         pi, mu, sigma = pi.detach().numpy(), mu.detach().numpy(), sigma.detach().numpy()
         return pi, mu[:, :, 0], sigma[:, :, 0]
 
-    def pdf(self, X, resolution=100):
+    def pdf(self, X, resolution=100, y_min=None, y_max=None):
         '''
         Compute the probability density function of the model.
 
-        This function computes the pdf for each sample in X, returning a pdf for each sample. 
+        This function computes the pdf for each sample in X.
         It also returns the y values for which the pdf is computed to help with plotting.
 
         Args:
@@ -168,14 +169,38 @@ class MixtureDensityEstimator(BaseEstimator):
         with torch.no_grad():
             pi, mu, sigma = self.model_(X)
         pi, mu, sigma = self.forward(X)
-        ys = np.linspace(self.y_min_, self.y_max_, resolution)
+        ys = np.linspace(
+            y_min if y_min else self.y_min_, 
+            y_max if y_max else self.y_max_, 
+            resolution
+        )
         pdf = np.zeros((pi.shape[0], resolution))
         for i in range(pi.shape[0]):
             for j in range(pi.shape[1]):
                 pdf[i] += norm(mu[i, j], sigma[i, j]).pdf(ys) * pi[i, j]
         return pdf, ys
     
-    def predict_var(self, X, quantile=0.9, resolution=100):
+    def cdf(self, X, resolution=100):
+        '''
+        Compute the cumulative probability density function of the model.
+
+        This function computes the cdf for each sample in Xd.
+        It also returns the y values for which the cdf is computed to help with plotting.
+
+        Args:
+            X: (n_samples, n_features)
+            resolution: number of points in the output pdf
+
+        Returns:
+            cdf: (n_samples, resolution)
+            ys: (resolution,)
+        '''
+        pdf, ys = self.pdf(X, resolution=resolution)
+        cdf = pdf.cumsum(axis=1)
+        cdf /= cdf[:, -1].reshape(-1, 1)
+        return cdf, ys
+        
+    def predict(self, X, quantiles=None, resolution=100):
         '''
         Predicts the variance at risk at a given quantile for each datapoint X.
         
@@ -184,12 +209,19 @@ class MixtureDensityEstimator(BaseEstimator):
             quantile: quantile value
 
         Returns:
-            risk: (n_samples,)
+            pred: (n_samples,)
+            quantiles: (n_samples, n_quantiles)
         '''
         pdf, ys = self.pdf(X, resolution=resolution)
         cdf = pdf.cumsum(axis=1)
         cdf /= cdf[:, -1].reshape(-1, 1)
-        risk = np.zeros(X.shape[0])
-        for i in range(X.shape[0]):
-            risk[i] = ys[np.argmax(cdf[i] > quantile)]
-        return risk
+        
+        mean_pred = ys[np.argmax(cdf > 0.5, axis=1)]
+        
+        if not quantiles:
+            return mean_pred
+        
+        quantile_out = np.zeros((X.shape[0], len(quantiles)))
+        for j, q in enumerate(quantiles):
+            quantile_out[:, j] = ys[np.argmax(cdf > q, axis=1)]
+        return mean_pred, quantile_out
