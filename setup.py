@@ -13,6 +13,6 @@ setup(
     packages=find_packages(),
     install_requires=["scikit-learn", "torch"],
     extras_require={
-        "dev": ["pytest"],
+        "dev": ["pytest", "mkdocs-material", "mkdocstrings"],
     },
 )

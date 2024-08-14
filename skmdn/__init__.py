@@ -114,7 +114,7 @@ class MixtureDensityEstimator(BaseEstimator):
     
     def partial_fit(self, X, y, n_epochs=1):
         """
-        Fit the model to the data for a few epochs.
+        Fit the model to the data for a set number of epochs. Can be used to continue training on new data.
         
         Args:
             X: (n_samples, n_features)
@@ -136,13 +136,15 @@ class MixtureDensityEstimator(BaseEstimator):
     
     def forward(self, X):
         """
-        Predict the mean of the distribution for each sample in X.
+        Calculate the $\pi$, $\mu$ and $\sigma$ outputs n for each sample in X.
         
         Args:
             X: (n_samples, n_features)
         
         Returns:
-            y: (n_samples,)
+            pi: (n_samples, n_gaussians)
+            mu: (n_samples, n_gaussians)
+            sigma: (n_samples, n_gaussians)
         """
         X = torch.FloatTensor(X)
         with torch.no_grad():
@@ -159,7 +161,7 @@ class MixtureDensityEstimator(BaseEstimator):
 
         Args:
             X: (n_samples, n_features)
-            resolution: number of points in the output pdf
+            resolution: number of intervals to compute the quantile over
 
         Returns:
             pdf: (n_samples, resolution)
@@ -189,7 +191,7 @@ class MixtureDensityEstimator(BaseEstimator):
 
         Args:
             X: (n_samples, n_features)
-            resolution: number of points in the output pdf
+            resolution: number of intervals to compute the quantile over
 
         Returns:
             cdf: (n_samples, resolution)
@@ -207,6 +209,7 @@ class MixtureDensityEstimator(BaseEstimator):
         Args:
             X: (n_samples, n_features)
             quantile: quantile value
+            resolution: number of intervals to compute the quantile over
 
         Returns:
             pred: (n_samples,)

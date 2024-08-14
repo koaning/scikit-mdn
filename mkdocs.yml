@@ -1,0 +1,30 @@
+site_name: scikit-mdn
+site_description: Mixture density networks for scikit-learn
+repo_url: https://github.com/koaning/scikit-mdn
+theme:
+  name: material
+  palette:
+    primary: white
+  font:
+    code: Roboto Mono
+  icon:
+    logo: fontawesome/solid/envelope-open-text
+  features:
+    - content.code.copy
+plugins:
+  - mkdocstrings:
+      default_handler: python
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascript/katex.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+
+extra_css:
+  - https://unpkg.com/katex@0/dist/katex.min.css
