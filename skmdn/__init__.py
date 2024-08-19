@@ -172,8 +172,8 @@ class MixtureDensityEstimator(BaseEstimator):
             pi, mu, sigma = self.model_(X)
         pi, mu, sigma = self.forward(X)
         ys = np.linspace(
-            y_min if y_min else self.y_min_, 
-            y_max if y_max else self.y_max_, 
+            y_min if y_min is not None else self.y_min_,
+            y_max if y_max is not None else self.y_max_,
             resolution
         )
         pdf = np.zeros((pi.shape[0], resolution))
