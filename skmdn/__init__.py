@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from sklearn.datasets import make_moons
-import matplotlib.pyplot as plt
 
 class MixtureDensityNetwork(nn.Module):
     '''
