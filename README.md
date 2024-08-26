@@ -18,6 +18,7 @@ Then you can use it in your code. Here is a small demo example.
 
 ```python
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.datasets import make_moons
 from skmdn import MixtureDensityEstimator
 
