@@ -11,7 +11,7 @@ setup(
     author="Vincent D. Warmerdam",
     version="0.0.2",
     packages=find_packages(),
-    install_requires=["scikit-learn", "torch"],
+    install_requires=["numpy<2", "scikit-learn", "torch"],
     extras_require={
         "dev": ["pytest", "mkdocs-material", "mkdocstrings"],
     },
