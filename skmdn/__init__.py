@@ -214,9 +214,7 @@ class MixtureDensityEstimator(BaseEstimator):
             pred: (n_samples,)
             quantiles: (n_samples, n_quantiles)
         '''
-        pdf, ys = self.pdf(X, resolution=resolution)
-        cdf = pdf.cumsum(axis=1)
-        cdf /= cdf[:, -1].reshape(-1, 1)
+        cdf, ys = self.cdf(X, resolution=resolution)
         
         mean_pred = ys[np.argmax(cdf > 0.5, axis=1)]
         
