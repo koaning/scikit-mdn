@@ -175,13 +175,6 @@ class MixtureDensityEstimator(BaseEstimator):
         ys = np.linspace(y_min or self.y_min_, y_max or self.y_max_, resolution)
         ys_broadcasted = np.broadcast_to(ys, (pi.shape[1], pi.shape[0], resolution)).T
         pdf = np.sum(norm(mu, sigma).pdf(ys_broadcasted) * pi, axis=2).T
-
-        ys = (
-            self.transformer.inverse_transform(ys.reshape(-1, 1)).reshape(-1)
-            if self.transformer
-            else ys
-        )
-
         return pdf, ys
 
     def cdf(self, X, resolution=100):
