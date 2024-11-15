@@ -166,15 +166,11 @@ class MixtureDensityEstimator(BaseEstimator):
             ys: (resolution,)
         '''
         X = torch.FloatTensor(X)
-
-        # with torch.no_grad():
-        #     pi, mu, sigma = self.model_(X)
-
         pi, mu, sigma = self.forward(X)
 
         ys = np.linspace(y_min or self.y_min_, y_max or self.y_max_, resolution)
         ys_broadcasted = np.broadcast_to(ys, (pi.shape[1], pi.shape[0], resolution)).T
-        pdf = np.sum(norm(mu, sigma).pdf(ys_broadcasted) * pi, axis=2).T
+        pdf = np.sum(norm(mu, sigma).pdf(ys_broadcasted) * np.float64(pi), axis=2).T
         return pdf, ys
 
     def cdf(self, X, resolution=100):
