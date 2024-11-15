@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from sklearn.datasets import make_moons
 
 class MixtureDensityNetwork(nn.Module):
     '''
@@ -167,20 +166,24 @@ class MixtureDensityEstimator(BaseEstimator):
             ys: (resolution,)
         '''
         X = torch.FloatTensor(X)
-        with torch.no_grad():
-            pi, mu, sigma = self.model_(X)
+
+        # with torch.no_grad():
+        #     pi, mu, sigma = self.model_(X)
+
         pi, mu, sigma = self.forward(X)
-        ys = np.linspace(
-            y_min if y_min is not None else self.y_min_,
-            y_max if y_max is not None else self.y_max_,
-            resolution
+
+        ys = np.linspace(y_min or self.y_min_, y_max or self.y_max_, resolution)
+        ys_broadcasted = np.broadcast_to(ys, (pi.shape[1], pi.shape[0], resolution)).T
+        pdf = np.sum(norm(mu, sigma).pdf(ys_broadcasted) * pi, axis=2).T
+
+        ys = (
+            self.transformer.inverse_transform(ys.reshape(-1, 1)).reshape(-1)
+            if self.transformer
+            else ys
         )
-        pdf = np.zeros((pi.shape[0], resolution))
-        for i in range(pi.shape[0]):
-            for j in range(pi.shape[1]):
-                pdf[i] += norm(mu[i, j], sigma[i, j]).pdf(ys) * pi[i, j]
+
         return pdf, ys
-    
+
     def cdf(self, X, resolution=100):
         '''
         Compute the cumulative probability density function of the model.
