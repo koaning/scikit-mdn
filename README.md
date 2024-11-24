@@ -54,7 +54,7 @@ This is what the chart looks like:
 
 There is a `weight_decay` parameter that will allow you to apply regularisation on the weights. On the moons example the effect of this is pretty clear. 
 
-![](docs/regular.png)
+![](docs/images/regular.png)
 
 ### API Documentation
 
