@@ -13,6 +13,6 @@ setup(
     packages=find_packages(),
     install_requires=["numpy<2", "scikit-learn", "torch"],
     extras_require={
-        "dev": ["pytest", "mkdocs-material", "mkdocstrings"],
+        "dev": ["pytest", "mkdocs-material", "mkdocstrings", "ipywidgets"],
     },
 )
