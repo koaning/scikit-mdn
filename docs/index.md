@@ -37,12 +37,6 @@ mdn.fit(X, Y)
 
 # Predict some quantiles on the train set 
 means, quantiles = mdn.predict(X, quantiles=[0.01, 0.1, 0.9, 0.99], resolution=100000)
-plt.scatter(X, Y)
-plt.scatter(X, quantiles[:, 0], color='orange')
-plt.scatter(X, quantiles[:, 1], color='green')
-plt.scatter(X, quantiles[:, 2], color='green')
-plt.scatter(X, quantiles[:, 3], color='orange')
-plt.scatter(X, means, color='red')
 ```
 
 This is what the chart looks like:
@@ -50,6 +44,12 @@ This is what the chart looks like:
 ![Example chart](./demo.png)
 
 You can see how it is able to predict the quantiles of the distribution, and the mean.
+
+## Regularisation 
+
+There is a `weight_decay` parameter that will allow you to apply regularisation on the weights. On the moons example the effect of this is pretty clear. 
+
+![](./images/regular.png)
 
 ## API
 

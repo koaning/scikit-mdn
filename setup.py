@@ -9,10 +9,10 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Vincent D. Warmerdam",
-    version="0.0.2",
+    version="0.0.3",
     packages=find_packages(),
     install_requires=["numpy<2", "scikit-learn", "torch"],
     extras_require={
-        "dev": ["pytest", "mkdocs-material", "mkdocstrings", "ipywidgets"],
+        "dev": ["pytest", "mkdocs-material", "mkdocstrings[python]", "ipywidgets"],
     },
 )
