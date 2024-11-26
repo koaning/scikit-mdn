@@ -107,7 +107,7 @@ class MixtureDensityEstimator(BaseEstimator):
         """
         y_ = self.transformer.fit_transform(y) if self.transformer else y
         X, y_ = self._cast_torch(X, y_)
-
+        
         self.model_ = MixtureDensityNetwork(
             X.shape[1], self.hidden_dim, y_.shape[1], self.n_gaussians
         )
@@ -236,12 +236,12 @@ class MixtureDensityEstimator(BaseEstimator):
         '''
         cdf, ys = self.cdf(X, resolution=resolution)
         
-        mean_pred = ys[np.argmax(cdf > 0.5, axis=1)]
+        median_pred = ys[np.argmax(cdf > 0.5, axis=1)]
         
         if not quantiles:
-            return mean_pred
+            return median_pred
         
         quantile_out = np.zeros((X.shape[0], len(quantiles)))
         for j, q in enumerate(quantiles):
             quantile_out[:, j] = ys[np.argmax(cdf > q, axis=1)]
-        return mean_pred, quantile_out
+        return median_pred, quantile_out
