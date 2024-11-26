@@ -109,7 +109,7 @@ class MixtureDensityEstimator(BaseEstimator):
         X, y_ = self._cast_torch(X, y_)
 
         self.model_ = MixtureDensityNetwork(
-            X.shape[1], self.hidden_dim, y.shape[1], self.n_gaussians
+            X.shape[1], self.hidden_dim, y_.shape[1], self.n_gaussians
         )
         
         self.optimizer_ = torch.optim.Adam(
