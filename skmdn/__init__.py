@@ -64,13 +64,26 @@ class MixtureDensityEstimator(BaseEstimator):
         epochs: number of epochs
         lr: learning rate
         weight_decay: weight decay for regularisation
+        quantile: quantile level (0, 1). If None, defaults to 0.5 (median).
+        return_mean: return the mean prediction instead of the median
     '''
-    def __init__(self, hidden_dim=10, n_gaussians=5, epochs=1000, lr=0.01, weight_decay=0.0):
+    def __init__(
+        self,
+        hidden_dim=10,
+        n_gaussians=5,
+        epochs=1000,
+        lr=0.01,
+        weight_decay=0.0,
+        quantile=None,
+        return_mean=None,
+    ):
         self.hidden_dim = hidden_dim
         self.n_gaussians = n_gaussians
         self.epochs = epochs
         self.lr = lr
         self.weight_decay = weight_decay
+        self.quantile = quantile
+        self.return_mean = return_mean
     
     def _cast_torch(self, X, y):
         if not hasattr(self, 'X_width_'):
@@ -96,6 +109,11 @@ class MixtureDensityEstimator(BaseEstimator):
             X: (n_samples, n_features)
             y: (n_samples, 1)
         """
+        if self.quantile and self.return_mean:
+            raise ValueError("Cannot return both defined quantile and mean.")
+
+        self.quantile_ = self.quantile or 0.5
+
         X, y = self._cast_torch(X, y)
 
         self.model_ = MixtureDensityNetwork(X.shape[1], self.hidden_dim, y.shape[1], self.n_gaussians)
@@ -192,28 +210,98 @@ class MixtureDensityEstimator(BaseEstimator):
         cdf = pdf.cumsum(axis=1)
         cdf /= cdf[:, -1].reshape(-1, 1)
         return cdf, ys
-        
-    def predict(self, X, quantiles=None, resolution=100):
+
+    def predict(
+        self,
+        X,
+        quantiles=None,
+        return_mean=None,
+        return_std=False,
+        resolution=100,
+    ):
         '''
         Predicts the variance at risk at a given quantile for each datapoint X.
-        
+
+        All keyword args passed at predict override the class instantiation or
+        fit values.
+
         Args:
             X: (n_samples, n_features)
-            quantile: quantile value
+            quantiles: quantile values. This cannot be used with return_std and supersedes
+                quantile passed at class instantiation.
+            return_mean: return the mean prediction and supersedes quantile or return_std
+                set at instantiation or fit.
+            return_std: return the standard deviation of the prediction.
+                This cannot be used with quantiles and supersedes quantile set at
+                instantiation or fit.
+            resolution: number of intervals to compute the quantile over. Only used with
+                quantile predictions.
+
+        Returns:
+            pred: (n_samples,) or (n_samples, n_quantiles) if quantiles is not None
+            std: (n_samples,) if return_std is True
+        '''
+        return_mean_ = self.return_mean if return_mean is None else return_mean
+
+        if return_std and quantiles:
+            raise ValueError("Cannot return both quantiles and standard deviation")
+
+        if return_mean_ and quantiles:
+            raise ValueError("Cannot return both mean and quantiles")
+
+        if return_mean_:
+            return self.predict_mean(X, return_std=return_std)
+        else:
+            return self.predict_quantiles(X, quantiles=quantiles, resolution=resolution)
+
+    def predict_mean(self, X, return_std=False):
+        '''
+        Predicts the mean of the distributions for each datapoint X.
+
+        Args:
+            X: (n_samples, n_features)
+            return_std: return the standard deviation of the prediction.
+
+        Returns:
+            mean_pred: (n_samples,)
+            std: (n_samples,) if return_std is True
+        '''
+        pi, mu, sigma = self.forward(X)
+
+        # Eq(45) MDN - C.Bishop
+        mean_pred = (mu * pi).sum(axis=1)
+
+        if not return_std:
+            return mean_pred
+
+        # Reformulation of sqrt(Var(Y)) from Eq(47) MDN - C.Bishop
+        # Details on reformulation: https://stats.stackexchange.com/a/309675/62008
+        std = np.sqrt(
+            np.sum(sigma ** 2 * pi, axis=1)
+            + np.sum(mu ** 2 * pi, axis=1)
+            - np.sum(mu * pi, axis=1) ** 2
+        )
+
+        return mean_pred, std
+
+    def predict_quantiles(self, X, quantiles=None, resolution=100):
+        '''
+        Predicts the quantiles of the distribution for each datapoint X.
+
+        Args:
+            X: (n_samples, n_features)
+            quantiles: list of quantile values. If None, defaults to the quantile set at
+                instantiation or fit (default 0.5).
             resolution: number of intervals to compute the quantile over
 
         Returns:
-            pred: (n_samples,)
-            quantiles: (n_samples, n_quantiles)
+            quantiles_out: (n_samples, n_quantiles)
         '''
         cdf, ys = self.cdf(X, resolution=resolution)
-        
-        mean_pred = ys[np.argmax(cdf > 0.5, axis=1)]
-        
-        if not quantiles:
-            return mean_pred
-        
-        quantile_out = np.zeros((X.shape[0], len(quantiles)))
-        for j, q in enumerate(quantiles):
-            quantile_out[:, j] = ys[np.argmax(cdf > q, axis=1)]
-        return mean_pred, quantile_out
+        quantiles_ = quantiles or [self.quantile_]
+        quantiles_out = np.zeros((X.shape[0], len(quantiles_)))
+
+        for j, q in enumerate(quantiles_):
+            quantiles_out[:, j] = ys[np.argmax(cdf > q, axis=1)]
+
+        return quantiles_out
