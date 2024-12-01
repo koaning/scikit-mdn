@@ -150,6 +150,9 @@ class MixtureDensityEstimator(BaseEstimator):
         pi, mu, sigma = pi.detach().numpy(), mu.detach().numpy(), sigma.detach().numpy()
         return pi, mu[:, :, 0], sigma[:, :, 0]
 
+    def validate_y_bound(self, y_bound, y_bound_):
+        return y_bound if y_bound is not None else y_bound_
+
     def pdf(self, X, resolution=100, y_min=None, y_max=None):
         '''
         Compute the probability density function of the model.
@@ -168,7 +171,11 @@ class MixtureDensityEstimator(BaseEstimator):
         X = torch.FloatTensor(X)
         pi, mu, sigma = self.forward(X)
 
-        ys = np.linspace(y_min or self.y_min_, y_max or self.y_max_, resolution)
+        ys = np.linspace(
+            self.validate_y_bound(y_min, self.y_min_),
+            self.validate_y_bound(y_max, self.y_max_),
+            resolution,
+        )
         ys_broadcasted = np.broadcast_to(ys, (pi.shape[1], pi.shape[0], resolution)).T
         pdf = np.sum(norm(mu, sigma).pdf(ys_broadcasted) * np.float64(pi), axis=2).T
         return pdf, ys
