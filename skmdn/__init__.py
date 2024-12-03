@@ -65,12 +65,21 @@ class MixtureDensityEstimator(BaseEstimator):
         lr: learning rate
         weight_decay: weight decay for regularisation
     '''
-    def __init__(self, hidden_dim=10, n_gaussians=5, epochs=1000, lr=0.01, weight_decay=0.0):
+    def __init__(
+        self,
+        hidden_dim=10,
+        n_gaussians=5,
+        epochs=1000,
+        lr=0.01,
+        weight_decay=0.0,
+        transformer=None,
+    ):
         self.hidden_dim = hidden_dim
         self.n_gaussians = n_gaussians
         self.epochs = epochs
         self.lr = lr
         self.weight_decay = weight_decay
+        self.transformer = transformer
     
     def _cast_torch(self, X, y):
         if not hasattr(self, 'X_width_'):
@@ -96,15 +105,21 @@ class MixtureDensityEstimator(BaseEstimator):
             X: (n_samples, n_features)
             y: (n_samples, 1)
         """
-        X, y = self._cast_torch(X, y)
-
-        self.model_ = MixtureDensityNetwork(X.shape[1], self.hidden_dim, y.shape[1], self.n_gaussians)
-        self.optimizer_ = torch.optim.Adam(self.model_.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        y_ = self.transformer.fit_transform(y) if self.transformer else y
+        X, y_ = self._cast_torch(X, y_)
+        
+        self.model_ = MixtureDensityNetwork(
+            X.shape[1], self.hidden_dim, y_.shape[1], self.n_gaussians
+        )
+        
+        self.optimizer_ = torch.optim.Adam(
+            self.model_.parameters(), lr=self.lr, weight_decay=self.weight_decay
+        )
 
         for epoch in range(self.epochs):
             self.optimizer_.zero_grad()
             pi, mu, sigma = self.model_(X)
-            loss = mdn_loss(pi, mu, sigma, y)
+            loss = mdn_loss(pi, mu, sigma, y_)
             loss.backward()
             self.optimizer_.step()
 
@@ -119,14 +134,18 @@ class MixtureDensityEstimator(BaseEstimator):
             y: (n_samples, 1)
             n_epochs: number of epochs
         """
-        X, y = self._cast_torch(X, y)
+        y_ = self.transformer.fit_transform(y) if self.transformer else y
+        X, y_ = self._cast_torch(X, y_)
 
         if not self.optimizer_:
-            self.optimizer_ = torch.optim.Adam(self.model_.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+            self.optimizer_ = torch.optim.Adam(
+                self.model_.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            )
+
         for epoch in range(n_epochs):
             self.optimizer_.zero_grad()
             pi, mu, sigma = self.model_(X)
-            loss = mdn_loss(pi, mu, sigma, y)
+            loss = mdn_loss(pi, mu, sigma, y_)
             loss.backward()
             self.optimizer_.step()
 
@@ -145,8 +164,10 @@ class MixtureDensityEstimator(BaseEstimator):
             sigma: (n_samples, n_gaussians)
         """
         X = torch.FloatTensor(X)
+
         with torch.no_grad():
             pi, mu, sigma = self.model_(X)
+
         pi, mu, sigma = pi.detach().numpy(), mu.detach().numpy(), sigma.detach().numpy()
         return pi, mu[:, :, 0], sigma[:, :, 0]
 
@@ -178,6 +199,13 @@ class MixtureDensityEstimator(BaseEstimator):
         )
         ys_broadcasted = np.broadcast_to(ys, (pi.shape[1], pi.shape[0], resolution)).T
         pdf = np.sum(norm(mu, sigma).pdf(ys_broadcasted) * np.float64(pi), axis=2).T
+
+        ys = (
+            self.transformer.inverse_transform(ys.reshape(-1, 1)).reshape(-1)
+            if self.transformer
+            else ys
+        )
+
         return pdf, ys
 
     def cdf(self, X, resolution=100):
@@ -215,12 +243,12 @@ class MixtureDensityEstimator(BaseEstimator):
         '''
         cdf, ys = self.cdf(X, resolution=resolution)
         
-        mean_pred = ys[np.argmax(cdf > 0.5, axis=1)]
+        median_pred = ys[np.argmax(cdf > 0.5, axis=1)]
         
         if not quantiles:
-            return mean_pred
+            return median_pred
         
         quantile_out = np.zeros((X.shape[0], len(quantiles)))
         for j, q in enumerate(quantiles):
             quantile_out[:, j] = ys[np.argmax(cdf > q, axis=1)]
-        return mean_pred, quantile_out
+        return median_pred, quantile_out
