@@ -133,7 +133,7 @@ class MixtureDensityEstimator(BaseEstimator):
         return self
     
     def forward(self, X):
-        """
+        r"""
         Calculate the $\pi$, $\mu$ and $\sigma$ outputs n for each sample in X.
         
         Args:
