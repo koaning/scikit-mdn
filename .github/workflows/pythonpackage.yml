@@ -18,5 +18,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: uv pip install -e ".[dev]"
+    - name: Build from notebooks
+      run: uvx mobuild export nbs skmdn
     - name: Test with pytest
       run: pytest --verbose
