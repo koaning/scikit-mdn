@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "setup": "make install",
+    "run": "uv run marimo edit mdn.py"
+  }
+}
