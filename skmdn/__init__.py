@@ -1,14 +1,17 @@
+## export
+
 from sklearn.base import BaseEstimator
 from scipy.stats import norm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+## export
 
 class MixtureDensityNetwork(nn.Module):
     '''
     A simple Mixture Density Network that predicts a distribution over a single output variable.
-    
+
     Args:
         input_dim: input dimension
         hidden_dim: hidden layer dimension
@@ -33,18 +36,18 @@ class MixtureDensityNetwork(nn.Module):
         mu = self.mu_layer(h).view(-1, self.n_gaussians, self.output_dim)
         sigma = F.softplus(self.sigma_layer(h)).view(-1, self.n_gaussians, self.output_dim)
         return pi, mu, sigma
-
+## export
 
 def mdn_loss(pi, mu, sigma, target):
     """
     MDN Loss Function
-    
+
     Args:
         pi: (batch_size, n_gaussians)
         mu: (batch_size, n_gaussians)
         sigma: (batch_size, n_gaussians)
         target: (batch_size, 1)
-    
+
     Returns:
         loss: scalar
     """
@@ -52,12 +55,12 @@ def mdn_loss(pi, mu, sigma, target):
     log_prob = normal.log_prob(target.unsqueeze(1).expand_as(mu))
     weighted_logprob = log_prob + torch.log(pi.unsqueeze(-1))
     return -torch.logsumexp(weighted_logprob, dim=1).mean()
-
+## export
 
 class MixtureDensityEstimator(BaseEstimator):
     '''
     A scikit-learn compatible Mixture Density Estimator.
-    
+
     Args:
         hidden_dim: hidden layer dimension
         n_gaussians: number of gaussians in the mixture model
@@ -71,7 +74,7 @@ class MixtureDensityEstimator(BaseEstimator):
         self.epochs = epochs
         self.lr = lr
         self.weight_decay = weight_decay
-    
+
     def _cast_torch(self, X, y):
         if not hasattr(self, 'X_width_'):
             self.X_width_ = X.shape[1]
@@ -83,15 +86,15 @@ class MixtureDensityEstimator(BaseEstimator):
             self.y_min_ = y.min()
         if not hasattr(self, 'y_max_:'):
             self.y_max_ = y.max()
-        
+
         assert X.shape[1] == self.X_width_, "Input dimension mismatch"
 
         return torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
-    
+
     def fit(self, X, y):
         """
         Fit the model to the data.
-        
+
         Args:
             X: (n_samples, n_features)
             y: (n_samples, 1)
@@ -109,11 +112,11 @@ class MixtureDensityEstimator(BaseEstimator):
             self.optimizer_.step()
 
         return self
-    
+
     def partial_fit(self, X, y, n_epochs=1):
         """
         Fit the model to the data for a set number of epochs. Can be used to continue training on new data.
-        
+
         Args:
             X: (n_samples, n_features)
             y: (n_samples, 1)
@@ -131,14 +134,14 @@ class MixtureDensityEstimator(BaseEstimator):
             self.optimizer_.step()
 
         return self
-    
+
     def forward(self, X):
         r"""
         Calculate the $\pi$, $\mu$ and $\sigma$ outputs n for each sample in X.
-        
+
         Args:
             X: (n_samples, n_features)
-        
+
         Returns:
             pi: (n_samples, n_gaussians)
             mu: (n_samples, n_gaussians)
@@ -199,11 +202,11 @@ class MixtureDensityEstimator(BaseEstimator):
         cdf = pdf.cumsum(axis=1)
         cdf /= cdf[:, -1].reshape(-1, 1)
         return cdf, ys
-        
+
     def predict(self, X, quantiles=None, resolution=100):
         '''
         Predicts the variance at risk at a given quantile for each datapoint X.
-        
+
         Args:
             X: (n_samples, n_features)
             quantile: quantile value
@@ -214,12 +217,12 @@ class MixtureDensityEstimator(BaseEstimator):
             quantiles: (n_samples, n_quantiles)
         '''
         cdf, ys = self.cdf(X, resolution=resolution)
-        
+
         mean_pred = ys[np.argmax(cdf > 0.5, axis=1)]
-        
+
         if not quantiles:
             return mean_pred
-        
+
         quantile_out = np.zeros((X.shape[0], len(quantiles)))
         for j, q in enumerate(quantiles):
             quantile_out[:, j] = ys[np.argmax(cdf > q, axis=1)]

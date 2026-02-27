@@ -1,6 +1,6 @@
 {
   "scripts": {
     "setup": "make install",
-    "run": "uv run marimo edit mdn.py"
+    "run": "uv run marimo edit nbs/__init__.py --no-sandbox"
   }
 }
